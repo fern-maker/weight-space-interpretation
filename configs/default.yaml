@@ -1,0 +1,9 @@
+# Top-level experiment config. Run: python scripts/run_experiment.py --config configs/default.yaml
+include: [training.yaml, interpretation.yaml, expansion.yaml]
+experiment:
+  namespace: ws-v1            # seed-derivation namespace; changing it changes every seed
+  stage: initial_15           # stage defined in expansion.yaml
+  tasks: [circle, diagonal, square]
+  device: cpu                 # cpu | mps (cpu recommended: tiny nets, bit-reproducible)
+paths:
+  root: .

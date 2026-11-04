@@ -1,0 +1,8 @@
+include: [training.yaml, interpretation.yaml, expansion.yaml]
+experiment:
+  namespace: ws-v1
+  stage: smoke
+  tasks: [circle, diagonal, square]
+  device: cpu
+paths:
+  root: smoke                  # separate tree; never mixed with study artifacts

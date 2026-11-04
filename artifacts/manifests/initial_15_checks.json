@@ -1,0 +1,7 @@
+{
+  "all_validated": true,
+  "leak_test_tail": ".............                                                            [100%]\n",
+  "leak_tests_passed": true,
+  "mismatches": [],
+  "reproducible": true
+}

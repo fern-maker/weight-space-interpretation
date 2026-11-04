@@ -1,0 +1,6 @@
+pyproject.toml
+src/weightspace.egg-info/PKG-INFO
+src/weightspace.egg-info/SOURCES.txt
+src/weightspace.egg-info/dependency_links.txt
+src/weightspace.egg-info/requires.txt
+src/weightspace.egg-info/top_level.txt

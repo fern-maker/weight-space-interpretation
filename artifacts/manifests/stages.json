@@ -1,0 +1,18 @@
+{
+  "initial_15": {
+    "checks": {
+      "done_at": "2026-11-04T21:38:35+00:00",
+      "leak_ok": true,
+      "reproducible": true
+    },
+    "train": {
+      "done_at": "2026-11-04T21:38:18+00:00",
+      "failed_runs": [],
+      "n_validated": 15
+    },
+    "units": {
+      "done_at": "2026-11-04T21:38:18+00:00",
+      "n_units": 35
+    }
+  }
+}

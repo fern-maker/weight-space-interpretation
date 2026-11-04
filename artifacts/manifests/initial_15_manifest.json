@@ -1,0 +1,206 @@
+{
+  "config_hash": "88cb3b55f7b3fd6c1416e5f80ce2ce64fc8cfbf993bacd60809f263f9a9a5435",
+  "environment": {
+    "anthropic_sdk": "2.5.0",
+    "cpu_count": 12,
+    "machine": "arm64",
+    "mps_available": false,
+    "numpy": "2.5.4",
+    "platform": "macOS-15.6.1-arm64-arm-64bit",
+    "python": "3.12.14",
+    "torch": "2.15.0"
+  },
+  "interpretation": {
+    "effort": "high",
+    "export_sig_digits": 6,
+    "max_cost_usd": 80.0,
+    "max_tokens": 32000,
+    "max_turns": 16,
+    "model": "claude-opus-5-5",
+    "os_sandbox": true,
+    "outer_retries": 4,
+    "price_cache_read_per_mtok": 0.2,
+    "price_cache_write_per_mtok": 5.0,
+    "price_input_per_mtok": 4.0,
+    "price_output_per_mtok": 20.0,
+    "provider": "anthropic",
+    "refusal_fallback": false,
+    "request_timeout_s": 900,
+    "thinking_display": "summarized"
+  },
+  "interpretation_hash": "0ad601b0d7a5ec30bd278e50f7b40a575262d70425f17f482e472b4be625fb91",
+  "methodology_sha256": "23600d0d4e73b3f8f4dc83ac9a335303d67780542e8208ef841f2b7bb6397570",
+  "namespace": "ws-v1",
+  "prompt_version": "1.0",
+  "source_tree_sha256": "d7a4215d8c3d514a7b98177664d3c580026aaa1ead4c18e2b309b462d3f085aa",
+  "stage": "initial_15",
+  "stage_def": {
+    "arch_only_a": 3,
+    "arch_only_b": 5,
+    "counts_toward_study": true,
+    "permutations_per_network": 1,
+    "previous": null,
+    "random_init_indices": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "seed_indices": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "tool_schema_sha256": {
+    "A": "2903be473510c341dd86c9d744eb73a7885915ab3b9288c77c101603ef8af82b",
+    "B": "99dd1941ccffb5bc88f2d1ce5b7264a1c0c4d51211a92777bb5f27d4d6aa2487"
+  },
+  "training_hash": "ad324eea223686e0a4453053f61a181a2d1c62b4623f8e29d9a9a53eab9e7a3d",
+  "units": {
+    "network_001": {
+      "export_sha256": "950f31ffeff2dee7a609ca35526be357cf65ee7be7ba8e45e9838d84492726c0",
+      "kind": "permuted"
+    },
+    "network_002": {
+      "export_sha256": "4b738eb44995eb1cc1eac6901875dfa13fed2f777ba230fe2d46bd4175d19632",
+      "kind": "permuted"
+    },
+    "network_003": {
+      "export_sha256": "47f7013517972d642dc2542046b871ef34ca17d5ca24943f10aed3b91d1601e0",
+      "kind": "permuted"
+    },
+    "network_004": {
+      "export_sha256": "3b3b6ef8770462f09318333c20c15d83b0dfdcbc4a45fa05b48e4e2854b6ff66",
+      "kind": "original"
+    },
+    "network_005": {
+      "export_sha256": "d75fca2d04dac4633db51ab5ec2a71978a230794893eaa4757808fe1c5088522",
+      "kind": "original"
+    },
+    "network_006": {
+      "export_sha256": "23ad169f3975301368c48f3962cb2eb42198e41f590c88d6137a0ceb27b2869d",
+      "kind": "permuted"
+    },
+    "network_007": {
+      "export_sha256": "8bda5b33a8b7d67a4d33145f7e913945ac17e6961b2d1b03d8abcddbe60c06a3",
+      "kind": "random_init"
+    },
+    "network_008": {
+      "export_sha256": "02e9025220342188954a801a575b925f34cdd9a17a12a91b4dd94c60dc99af53",
+      "kind": "original"
+    },
+    "network_009": {
+      "export_sha256": "70e59420c5c1b1f6bb2b23b6d4ac5b23ced6cacd647eff3bf9b13bb394318686",
+      "kind": "permuted"
+    },
+    "network_010": {
+      "export_sha256": "925d63d7fa7ecaad2ad811fbdb4c73c9261384b5e6db80a2c522b377097cf63c",
+      "kind": "permuted"
+    },
+    "network_011": {
+      "export_sha256": "bce53c4111c597a7ac71c006ac3a9359992139cd372cbaa6b995ebc3fcf9e4f7",
+      "kind": "original"
+    },
+    "network_012": {
+      "export_sha256": "35c52c3828719902b605d4f952fe5338859a8046447371dfa1c052852e8071bf",
+      "kind": "permuted"
+    },
+    "network_013": {
+      "export_sha256": "d97bdfbfed36f663e13fd537f72d747951b025538b72f8ff6d6fed7dc71d21c3",
+      "kind": "original"
+    },
+    "network_014": {
+      "export_sha256": "0d54ba1c43f4f91759eab844e5e0c4e3a7773314922f37cc49dd27964aa6d21a",
+      "kind": "permuted"
+    },
+    "network_015": {
+      "export_sha256": "66996bf7c60aff2fe73166e28af78b4975965be8c6117b37ceec7264171fd190",
+      "kind": "permuted"
+    },
+    "network_016": {
+      "export_sha256": "2519c21e3e48b2bcfe9177c971be6ab0e060a9d3c17ad95fc9c8a2efa2631303",
+      "kind": "original"
+    },
+    "network_017": {
+      "export_sha256": "e328c1b8df81390818f06da64bfff09011c166236f07b3dcfeac96f6ddbb85a4",
+      "kind": "random_init"
+    },
+    "network_018": {
+      "export_sha256": "107e2e9671ef06dc63dd4bb054fcea1a06e682dac8d1552a00b65bb5d392f603",
+      "kind": "permuted"
+    },
+    "network_019": {
+      "export_sha256": "8c6c4ab041429df1133f4175d7cab0b538f2f5bd517b4936771fa0804b6e3b94",
+      "kind": "original"
+    },
+    "network_020": {
+      "export_sha256": "7235e664267fd858f63086b7e12b84a83afccc21fb066918c1f8e2f2c714a3be",
+      "kind": "original"
+    },
+    "network_021": {
+      "export_sha256": "0c6d17e9f56be222edb0ed86134d63f59bf2ea3d73d9c67a605087dbd76a3737",
+      "kind": "original"
+    },
+    "network_022": {
+      "export_sha256": "b6cefc38d6958865d9c23f65522312922886f5aac5868633615172810ff4dd89",
+      "kind": "permuted"
+    },
+    "network_023": {
+      "export_sha256": "6a3b0c169306553494826eddc89fb0b7087c14379bd050b8f094822447be1370",
+      "kind": "permuted"
+    },
+    "network_024": {
+      "export_sha256": "815a9871ef0260d32fa7ef0231920f83ac71515b18e5d1b8d3044599abe9ec68",
+      "kind": "original"
+    },
+    "network_025": {
+      "export_sha256": "ee096e3197dee404cfc5995efaf078bef1d0b34de38a93983cd2ebbc93806e5f",
+      "kind": "permuted"
+    },
+    "network_026": {
+      "export_sha256": "6fe9cabf4638b7e67b783945d4fd4c7f84a50a04c3c09376404809e9ef16a5eb",
+      "kind": "random_init"
+    },
+    "network_027": {
+      "export_sha256": "1eed0393c74a3491776adf5736d69e291bbb67201f71afc93c9f25ba3b0280de",
+      "kind": "original"
+    },
+    "network_028": {
+      "export_sha256": "37adbd2738d08d14c17d5c43cf82857e47917bf1c2dafbf2296235aaa34f59c4",
+      "kind": "original"
+    },
+    "network_029": {
+      "export_sha256": "bfbfa0798a766a3eef5629422f7e94a4c047ecd9274fc57bd35619e8a47c4517",
+      "kind": "permuted"
+    },
+    "network_030": {
+      "export_sha256": "31435d2c5fd73ffd7e84fa3127e69ef0343546b276e302ffc26ef35c49c2c6f8",
+      "kind": "random_init"
+    },
+    "network_031": {
+      "export_sha256": "eb9d9e499f5ec2598c92730f45cf662f45f0994c7d96dba1229b4720d7971cb2",
+      "kind": "original"
+    },
+    "network_032": {
+      "export_sha256": "1529e3bda305b6cff5f7d1686d0df977ca32063a5da45a000fcff69d39f33505",
+      "kind": "original"
+    },
+    "network_033": {
+      "export_sha256": "d9d013eb01a9d2f8e3f4bcb70e91a9b06cfc724bbb3a5fa740debeff0741ea5c",
+      "kind": "random_init"
+    },
+    "network_034": {
+      "export_sha256": "c227d789f21a44a91bedc4513535c3d14e9961effd4396f1ab1fd435138d5242",
+      "kind": "original"
+    },
+    "network_035": {
+      "export_sha256": "d58128492ef3cd1980eeaabebf92a7c60940cd11ce9e6965dabd410cca6fd5cb",
+      "kind": "permuted"
+    }
+  },
+  "written_at": "2026-11-04T21:38:18+00:00"
+}

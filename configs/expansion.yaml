@@ -1,0 +1,34 @@
+# Stage definitions. Seed indices must never overlap between stages.
+stages:
+  smoke:
+    seed_indices: [900]
+    random_init_indices: [900]
+    permutations_per_network: 1
+    arch_only_a: 1
+    arch_only_b: 1
+    previous: null
+    counts_toward_study: false
+  initial_15:
+    seed_indices: [0, 1, 2, 3, 4]
+    random_init_indices: [0, 1, 2, 3, 4]
+    permutations_per_network: 1
+    arch_only_a: 3
+    arch_only_b: 5
+    previous: null
+    counts_toward_study: true
+  expand_30:
+    seed_indices: [5, 6, 7, 8, 9]
+    random_init_indices: [5, 6, 7, 8, 9]
+    permutations_per_network: 1
+    arch_only_a: 0
+    arch_only_b: 0
+    previous: initial_15
+    counts_toward_study: true
+  expand_60:
+    seed_indices: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    random_init_indices: [10, 11, 12, 13, 14]
+    permutations_per_network: 1
+    arch_only_a: 0
+    arch_only_b: 0
+    previous: expand_30
+    counts_toward_study: true

@@ -1,0 +1,11 @@
+torch>=2.2
+numpy>=1.26
+pyyaml>=6.0
+anthropic>=0.70
+matplotlib>=3.8
+
+[dev]
+pytest>=8
+ruff>=0.6
+mypy>=1.10
+types-PyYAML

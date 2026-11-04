@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+artifacts/private/
+artifacts/public/
+results/transcripts/
+results/logs/
+smoke/
+.claude/

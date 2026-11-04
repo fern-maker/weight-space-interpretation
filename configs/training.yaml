@@ -1,0 +1,15 @@
+training:
+  n_train: 10000
+  n_val: 2000
+  n_test: 5000
+  batch_size: 256
+  lr: 0.001
+  max_epochs: 300
+  early_stop_val_acc: 0.99
+  early_stop_patience: 10
+  accuracy_target: 0.95
+  replacement_seed_range: [500, 599]
+  num_threads: 1
+permutation:
+  verify_points: 4096
+  atol: 1.0e-5
