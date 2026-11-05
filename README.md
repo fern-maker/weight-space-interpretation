@@ -9,13 +9,18 @@ Programming". Start with `AGENTS.md`, then `docs/`.
 ```bash
 UV_CACHE_DIR=$TMPDIR/uvcache uv venv --python 3.12 .venv
 UV_CACHE_DIR=$TMPDIR/uvcache uv pip install --python .venv/bin/python -e ".[dev]"
-cp .env.example .env   # then put your ANTHROPIC_API_KEY in .env (git-ignored)
 ```
+
+Interpretation backend (`configs/interpretation.yaml`): this study uses
+`claude_code`, i.e. headless Claude Code under your own login (install Claude
+Code and log in once). For the `anthropic_api` backend instead, `cp
+.env.example .env` and put your `ANTHROPIC_API_KEY` there (git-ignored).
 
 ## Run
 
 ```bash
 .venv/bin/pytest -q                                              # tests
+.venv/bin/python scripts/probe_claude_code.py                    # live isolation probe (must PASS first)
 .venv/bin/python scripts/run_experiment.py --config configs/smoke.yaml    # smoke (dev only)
 .venv/bin/python scripts/run_experiment.py --config configs/default.yaml  # 15-network study
 .venv/bin/python scripts/expand_experiment.py --target-networks 30        # only if eligible
@@ -24,8 +29,8 @@ cp .env.example .env   # then put your ANTHROPIC_API_KEY in .env (git-ignored)
 ```
 
 Every step is idempotent: re-running skips completed, hash-verified work and
-resumes interrupted interpretation passes. Without API credentials the
-pipeline stops after training/export and says so.
+resumes interrupted interpretation passes. Without a ready backend
+the pipeline stops after training/export and says so.
 
 Other entry points: `scripts/train_models.py --verify` (retrain and compare
 hashes), `scripts/interpret_weights.py --protocol A|B`,

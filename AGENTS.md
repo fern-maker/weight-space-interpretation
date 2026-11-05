@@ -41,5 +41,12 @@
   `.venv/bin/python`. Tests: `.venv/bin/pytest -q`.
 - Private ground truth: `artifacts/private/` — never passed to prompts or the
   tool server.
-- LLM: Anthropic API, model from `configs/interpretation.yaml`; key from
-  `ANTHROPIC_API_KEY` env var (see `.env.example`). Never commit secrets.
+- LLM: model from `configs/interpretation.yaml`. Backend for this study is
+  **`claude_code`** (headless Claude Code under the user's login; METHODOLOGY
+  amendment 2026-11-05, ARCHITECTURE §10). Never switch backend mid-study and
+  never pool sessions from different backends. The `anthropic_api` backend
+  (key from `ANTHROPIC_API_KEY`) remains for future studies. Never commit
+  secrets.
+- Before any study session under `claude_code`, the live probe
+  (`scripts/probe_claude_code.py`) must pass; it is run by the user from a
+  normal terminal, since the agent sandbox cannot use the user's login.

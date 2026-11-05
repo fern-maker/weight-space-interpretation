@@ -252,3 +252,37 @@ summation order and produced a max logit difference of 1.14e-5 (> 1e-5) for
 one square network with large logits. The tolerance (1e-5) and the
 same-class requirement are unchanged; float64 makes the check stricter. No
 scoring rule or expansion criterion is affected.
+
+**2026-11-05 (before any interpretation session was run).** Interpretation
+backend. No API key is available, so all interpretation sessions of this
+study are run through headless Claude Code (`claude -p`) under the user's
+Claude Code login instead of direct API calls (`interpretation.backend:
+claude_code`; design in ARCHITECTURE §10). The backend is fixed for the whole
+study: every stage (15, 30, 60) uses it, and API and Claude Code sessions are
+never mixed. Unchanged: model (`claude-opus-5-5`), effort (`high`), system
+prompt and user prompts (same text and hashes, prompt version 1.0), tool set
+and schemas, weight exports, turn cap, nudge, isolation rules of §5.1, all
+scoring rules (§7) and all expansion criteria (§8).
+
+Changes and their handling:
+
+1. The tools are served to Claude Code by a local MCP server holding only the
+   unit's export; all Claude Code built-in tools (files, shell, web, agents)
+   are disabled, settings/plugins/hooks are not loaded, and each session runs
+   in its own empty directory. A per-session check of Claude Code's startup
+   report (tools, servers, plugins, model) must pass before the session
+   counts; any failure aborts it without a record.
+2. A submission that violates the tool schema is rejected with a tool error
+   and the model may resubmit (the API backend's strict tools make such
+   submissions impossible). Rejections are counted and reported.
+3. Infrastructure failures (login, usage limit, overload, model switch)
+   abort the session; the session is re-run from scratch in a new
+   conversation. Aborts are logged and reported. After 3 aborted attempts the
+   session is recorded as invalid (§7.1, "API failure after retries").
+   Abort decisions never depend on the content of an answer.
+4. Not controllable or not recorded by this backend: exact request bytes
+   (Claude Code may add harness context such as the date), thinking display
+   and max_tokens (Claude Code defaults), request IDs. Reasoning summaries
+   are used for the §7.4 scan only if Claude Code emits them.
+5. Results are reported as "Claude Opus 5.5 run through Claude Code", not as
+   raw-API results.

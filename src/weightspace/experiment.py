@@ -213,7 +213,8 @@ def write_stage_manifest(cfg: ExperimentConfig, truth: dict) -> Path:
 
 # ------------------------------------------------------------------ interpretation
 def interpret_stage(cfg: ExperimentConfig, protocol: str, turn_fn=None,
-                    request_params: dict | None = None) -> dict:
+                    request_params: dict | None = None,
+                    cc_executable: list[str] | None = None) -> dict:
     """Run every not-yet-recorded session for one protocol (resumable)."""
     from .interpreter import run_session
 
@@ -221,10 +222,17 @@ def interpret_stage(cfg: ExperimentConfig, protocol: str, turn_fn=None,
     if is_done(P, cfg.stage, "freeze"):
         raise RuntimeError("stage already frozen; predictions are immutable")
     truth = load_truth(P)
-    if turn_fn is None:
+    icfg = cfg.interpretation
+    use_cc = icfg.get("backend", "anthropic_api") == "claude_code" and turn_fn is None
+    if use_cc:
+        from .claude_code_backend import HarnessError, passing_probe_versions, run_session_cc
+
+        repo = Path(__file__).resolve().parents[2]
+        probed = None if cc_executable else passing_probe_versions(repo)
+    elif turn_fn is None:
         from .llm_client import LLMClient
 
-        client = LLMClient(cfg.interpretation)
+        client = LLMClient(icfg)
         turn_fn, request_params = client, client.request_params()
     ids = sorted(n for n, u in truth.items() if u["stage"] == cfg.stage)
     rng = np.random.default_rng(derive_seed(cfg.namespace, cfg.stage, protocol, "order"))
@@ -235,6 +243,8 @@ def interpret_stage(cfg: ExperimentConfig, protocol: str, turn_fn=None,
     spent = stage_cost(P, cfg.stage)
     deny = [cfg.private_dir, cfg.results_dir, cfg.manifest_dir]
     done = skipped = 0
+    stopped: str | None = None
+    aborts_path = P.preds / cfg.stage / "_harness_aborts.jsonl"
     for nid, cond in jobs:
         sub = protocol if cond == "weights_tools" else f"arch_{protocol}"
         out = P.preds / cfg.stage / sub / f"{nid}.json"
@@ -250,11 +260,29 @@ def interpret_stage(cfg: ExperimentConfig, protocol: str, turn_fn=None,
             cands = [sorted(cfg.tasks)[i] for i in crng.permutation(3)]
         export = read_json(P.root / truth[nid]["export"]) if cond == "weights_tools" else None
         shown_id = nid if cond == "weights_tools" else "network_000"
-        rec = run_session(network_id=shown_id, protocol=protocol, condition=cond,
-                          turn_fn=turn_fn, request_params=request_params or {},
-                          max_turns=int(cfg.interpretation["max_turns"]), export=export,
-                          candidate_order=cands, deny_dirs=deny,
-                          os_sandbox=bool(cfg.interpretation.get("os_sandbox", True)))
+        os_sb = bool(icfg.get("os_sandbox", True))
+        if use_cc:
+            try:
+                rec = run_session_cc(network_id=shown_id, protocol=protocol, condition=cond,
+                                     icfg=icfg, export=export, candidate_order=cands,
+                                     deny_dirs=deny, os_sandbox=os_sb, executable=cc_executable,
+                                     probed_versions=probed)
+            except HarnessError as e:
+                prior = _counted_aborts(aborts_path, sub, nid)
+                _append_jsonl(aborts_path, {"unit": nid, "pass": sub, "at": now(),
+                                            "reason": e.reason, "detail": e.detail[:300],
+                                            "counted": e.counted})
+                max_att = int(icfg.get("claude_code", {}).get("max_attempts_per_session", 3))
+                if not (e.counted and prior + 1 >= max_att):
+                    stopped = f"harness error on {sub}/{nid}: {e.reason}"
+                    log.error("%s; pass stopped (resumable). %s", stopped, e.detail[:300])
+                    break
+                rec = _harness_failure_record(shown_id, protocol, cond, cands, e)
+        else:
+            rec = run_session(network_id=shown_id, protocol=protocol, condition=cond,
+                              turn_fn=turn_fn, request_params=request_params or {},
+                              max_turns=int(icfg["max_turns"]), export=export,
+                              candidate_order=cands, deny_dirs=deny, os_sandbox=os_sb)
         transcript = rec.pop("_transcript")
         rec["unit"] = nid
         write_json(P.transcripts / cfg.stage / sub / f"{nid}.json", transcript)
@@ -267,7 +295,36 @@ def interpret_stage(cfg: ExperimentConfig, protocol: str, turn_fn=None,
                     / f"{n}.json").exists() for n, c in jobs)
     if complete:
         mark(P, cfg.stage, f"interpret_{protocol}", {"sessions": len(jobs)})
-    return {"done": done, "skipped": skipped, "complete": complete, "spent_usd": spent}
+    return {"done": done, "skipped": skipped, "complete": complete, "spent_usd": spent,
+            "stopped": stopped}
+
+
+def _append_jsonl(path: Path, obj: dict) -> None:
+    import json
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(obj) + "\n")
+
+
+def _counted_aborts(path: Path, sub: str, nid: str) -> int:
+    import json
+
+    if not path.exists():
+        return 0
+    rows = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
+    return sum(1 for r in rows if r["unit"] == nid and r["pass"] == sub and r["counted"])
+
+
+def _harness_failure_record(shown_id: str, protocol: str, cond: str,
+                            cands: list[str] | None, e: Exception) -> dict:
+    """METHODOLOGY §7.1: failure after retries = invalid response (kept, not dropped)."""
+    return {"network_id": shown_id, "protocol": protocol, "condition": cond,
+            "candidate_order": cands, "prompt_version": PROMPT_VERSION,
+            "backend": "claude_code", "status": "harness_failure", "valid": False,
+            "validation_problems": [str(e)[:300]], "submission": None, "n_turns": 0,
+            "n_tool_calls": 0, "tool_calls": [], "turns": [], "usage_total": {},
+            "cost_usd": 0.0, "completed_at": now(), "_transcript": []}
 
 
 def stage_cost(P: Paths, stage: str) -> float:
@@ -354,7 +411,7 @@ def check_compatible(cfg: ExperimentConfig) -> None:
 
 def run_stage(cfg: ExperimentConfig, skip_interpretation: bool = False) -> dict:
     """Full pipeline for cfg.stage. Returns a summary dict."""
-    from .llm_client import has_credentials
+    from .claude_code_backend import backend_ready
 
     check_compatible(cfg)
     validated = train_stage(cfg)
@@ -367,14 +424,16 @@ def run_stage(cfg: ExperimentConfig, skip_interpretation: bool = False) -> dict:
     if skip_interpretation:
         summary["stopped"] = "interpretation skipped by request"
         return summary
-    if not has_credentials():
-        summary["stopped"] = "no API credentials; interpretation not run (no results invented)"
+    ready, why = backend_ready(cfg.interpretation)
+    if not ready:
+        summary["stopped"] = f"{why}; interpretation not run (no results invented)"
         return summary
     for proto in ("A", "B"):
         r = interpret_stage(cfg, proto)
         summary[f"interpret_{proto}"] = r
         if not r["complete"]:
-            summary["stopped"] = f"protocol {proto} incomplete (cost cap or errors); resumable"
+            summary["stopped"] = (f"protocol {proto} incomplete ({r.get('stopped') or 'cost cap'}"
+                                  "); resumable")
             return summary
     freeze_stage(cfg)
     summary["metrics"] = evaluate_stage(cfg)

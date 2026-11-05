@@ -93,6 +93,12 @@ full stage must be run.
   test). A refusal = invalid response.
 - Credentials: `ANTHROPIC_API_KEY` (or an SDK-supported credential source)
   from the environment; never stored in the repo.
+- **Backend in use (amendment 2026-11-05):** headless Claude Code
+  (`interpretation.backend: claude_code`) under the user's subscription login,
+  since no API key is available. Same model, effort, prompts and tools; see
+  METHODOLOGY amendment 2026-11-05 and ARCHITECTURE §10. Budget below is then
+  notional (subscription usage limits apply instead); usage-limit stops are
+  resumable.
 
 ## 7. Budget
 
@@ -120,6 +126,8 @@ minutes in total. Memory well under 1 GB. No GPU required; MPS optional.
 | Training failure (< 95%) | Recorded, never dropped; replacement seed drawn from reserved range and documented |
 | Permutations not independent samples | Reported as paired robustness, never pooled into primary accuracy |
 | API errors / rate limits | SDK retries + outer retry; resumable sessions |
+| Claude Code harness exposes extra tools/context | Built-ins off, no settings sources, empty per-session cwd, init guard per session, live canary probe before the study |
+| Subscription usage limit / model switch mid-session | Model guard aborts; aborted attempts logged; pass resumes later |
 | Cost overrun | Per-stage cap |
 | Missing credentials | Pipeline stops before interpretation; nothing invented |
 | Open-ended scoring subjectivity | Primary score is a symbolic rule checked numerically; free text only summarised |

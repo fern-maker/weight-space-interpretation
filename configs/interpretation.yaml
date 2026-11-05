@@ -1,11 +1,15 @@
 interpretation:
+  # anthropic_api | claude_code. Fixed for the whole study (METHODOLOGY amendment
+  # 2026-11-05, ARCHITECTURE §10). Part of interpretation_hash: stages run under a
+  # different backend can never be pooled.
+  backend: claude_code
   provider: anthropic
   model: claude-opus-5-5
   effort: high                # low | medium | high | xhigh | max
-  thinking_display: summarized
-  max_tokens: 32000
+  thinking_display: summarized   # API backend only
+  max_tokens: 32000              # API backend only
   max_turns: 16
-  max_cost_usd: 80.0          # per stage; pass aborts (resumable) when exceeded
+  max_cost_usd: 80.0          # per stage; pass aborts (resumable) when exceeded (notional under claude_code)
   price_input_per_mtok: 4.0
   price_output_per_mtok: 20.0
   price_cache_read_per_mtok: 0.20
@@ -13,5 +17,10 @@ interpretation:
   request_timeout_s: 900
   outer_retries: 4
   refusal_fallback: false     # a fallback would silently change the model under test
-  os_sandbox: true            # wrap tool server in macOS sandbox-exec when available
+  os_sandbox: true            # wrap tool server / MCP server in macOS sandbox-exec when available
   export_sig_digits: 6
+  claude_code:
+    executable: claude
+    mcp_server_name: weights
+    session_timeout_s: 2400   # whole session, wall clock
+    max_attempts_per_session: 3   # counted aborts before a session is recorded as harness_failure

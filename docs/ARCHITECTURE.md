@@ -59,7 +59,9 @@ workspace itself is the project.
 │   ├── tools.py                 tool schemas + pure tool implementations
 │   ├── prompts.py               prompt templates for each protocol/condition
 │   ├── llm_client.py            Anthropic client wrapper, retries, cost, logs
-│   ├── interpreter.py           one isolated session = one agent loop
+│   ├── interpreter.py           one isolated session = one agent loop (API backend)
+│   ├── claude_code_backend.py   one isolated session via headless Claude Code (§10)
+│   ├── mcp_server.py            stdio MCP server exposing tools.py to Claude Code
 │   ├── evaluation.py            private scoring of frozen predictions
 │   ├── statistics.py            Wilson CI, binomial tests, calibration
 │   ├── baselines.py             chance, architecture-only, random-init units
@@ -68,6 +70,7 @@ workspace itself is the project.
 ├── scripts/
 │   ├── train_models.py  inspect_weights.py  interpret_weights.py
 │   ├── run_experiment.py  expand_experiment.py  generate_report.py
+│   └── probe_claude_code.py     live isolation probe for the Claude Code backend
 ├── tests/                       pytest suite (see §9)
 ├── artifacts/
 │   ├── private/                 NEVER LLM-visible
@@ -120,9 +123,15 @@ configs/*.yaml ──► config.py (validate, hash)
                                                 │
    ═════════════════════ LEAKAGE BOUNDARY ══════╪══════════════════════════
                                                 ▼
+  backend anthropic_api:
            interpreter.py  ──prompt──►  llm_client.py ──HTTPS──► Claude API
                 │   ▲                                   (model from config)
                 │   └── tool calls ── tool_server.py (subprocess, export only)
+  backend claude_code (§10):
+     claude_code_backend.py ──stream-json──► `claude -p` (locked down) ──► Claude
+                │                                │   (subscription login)
+                │                                └── MCP stdio ── mcp_server.py
+                │                                       (subprocess, export only)
                 ▼
      results/predictions/... (one JSON per session)  ─► freeze manifest (SHA-256)
    ═════════════════════════════════════════════════════════════════════════
@@ -233,6 +242,22 @@ cap on turns; each tool call proxied to the tool server and logged
 Output validated against the protocol schema. Nothing from other sessions is
 ever included.
 
+**claude_code_backend.py** — `run_session_cc(...)` with the same arguments
+and the same record schema as `interpreter.run_session`, so freezing,
+evaluation and reporting are unchanged. Builds the locked-down `claude -p`
+command, the per-session directories and MCP config, checks Claude Code's
+`init` event before the model sees anything, enforces the turn cap and the
+single nudge, checks the served model on every turn. Details in §10.
+
+**mcp_server.py** — `python -I -m weightspace.mcp_server <session_mcp_dir>`.
+Minimal MCP (JSON-RPC 2.0 over stdio: `initialize`, `tools/list`,
+`tools/call`, `ping`), no third-party MCP library. Reads only `export.json`
+and `spec.json` from its directory, serves exactly `tools.tool_set(...)` with
+the same schemas, validates `submit_interpretation` against its schema,
+writes `calls.jsonl` and `submission.json`, rejects every call after the
+submission, leak-scans every tool output. Same import restrictions as
+`tool_server.py` (no torch, no checkpoint/ground-truth code).
+
 **evaluation.py** — loads frozen predictions, verifies freeze hashes, joins
 with `ground_truth.json`. Protocol B: accuracy, confusion, per-task, per-seed,
 calibration, invalid rate. Protocol A: rule parsing, agreement with each
@@ -267,8 +292,10 @@ permuted units are interpreted inside 8–9 because they are mixed into the
 pool, 11. architecture-only sessions, 12. freeze, 13. evaluate, 14. report,
 15. update status doc, 16. expansion verdict.
 
-Steps 8–11 need API credentials. Without them the pipeline stops after step 7
-with a clear message, and no interpretation results are produced or invented.
+Steps 8–11 need a working interpretation backend (§10): an API key for
+`anthropic_api`, or an installed, logged-in `claude` CLI for `claude_code`.
+Without one the pipeline stops after step 7 with a clear message, and no
+interpretation results are produced or invented.
 
 Each step writes a marker with input/output hashes; a re-run verifies and
 skips completed steps. Interpretation sessions are individually resumable
@@ -299,7 +326,9 @@ Layers of defence, from strongest to weakest:
 
 1. **Process isolation.** Tools run in a separate interpreter (`-I`, empty
    env, empty CWD) that only receives the export JSON. The agent loop never
-   passes paths. The LLM has no filesystem, shell or Python access.
+   passes paths. The LLM has no filesystem, shell or Python access. With the
+   `claude_code` backend this additionally depends on Claude Code's built-in
+   tools being off and checked per session (§10.2–10.3).
 2. **Capability allowlist.** Tool set is fixed per condition; no tool takes
    input-space points, so no forward pass can be requested. Calls to unknown
    tools are rejected and logged.
@@ -339,5 +368,123 @@ signs of explicit point-wise forward simulation (reported, not filtered).
 | test_permutation.py | equivalence within tolerance; non-identity perms |
 | test_evaluation.py | scoring on synthetic predictions, rule parser safety, response parsing |
 | test_expansion.py | duplicate-seed rejection, criteria logic, stage reuse |
+| test_claude_code_backend.py | MCP server protocol, tool list identical to API tool set, post-submit lockout, schema rejection, isolation of the MCP process; locked-down CLI flags; init-event guard (rejects extra tools, user plugins, wrong model, failed server); full sessions against a fake `claude` executable (submit, nudge, turn cap, model switch, harness error) |
 
 Lint/format: `ruff`; types: `mypy` on `src/` (non-strict).
+
+## 10. Interpretation backends
+
+`interpretation.backend` selects how the model is reached. One backend per
+study: it is part of `interpretation_hash`, so `check_compatible` refuses to
+extend a stage with a different backend, and API and Claude Code sessions can
+never be mixed within or across stages.
+
+| | `anthropic_api` | `claude_code` |
+|---|---|---|
+| Credential | `ANTHROPIC_API_KEY` | the user's Claude Code login (subscription) |
+| Loop owner | `interpreter.py` | Claude Code, observed by `claude_code_backend.py` |
+| Tools | `tool_server.py` subprocess | `mcp_server.py` subprocess (same `tools.py`) |
+| System prompt | `prompts.SYSTEM_PROMPT` | the same text via `--system-prompt` (replaces Claude Code's prompt) |
+| User message, tool schemas | `prompts`, `tools` | identical bytes and schemas; tool names are prefixed `mcp__weights__` |
+
+### 10.1 Session layout (claude_code)
+
+For every session a fresh directory outside the repository is created under
+the system temp dir:
+
+```text
+ws_cc_XXXX/
+├── cwd/        empty; Claude Code's working directory (unique per session,
+│               so Claude Code's per-directory memory is always empty)
+├── mcp/        export.json (the one unit, or absent for architecture-only)
+│               spec.json   (protocol, condition, candidate order)
+│               calls.jsonl, submission.json (written by the MCP server)
+└── mcp.json    MCP config: one server "weights"
+```
+
+It is deleted after the session record is written. No repository path is
+passed to Claude Code; the MCP server gets only `mcp/`.
+
+### 10.2 Locked-down command
+
+```text
+claude -p --input-format stream-json --output-format stream-json --verbose
+  --model <interpretation.model> --effort <interpretation.effort>
+  --system-prompt <SYSTEM_PROMPT>
+  --tools ""                         # no built-in tools: no Read/Bash/Web/Agent
+  --strict-mcp-config --mcp-config mcp.json
+  --allowedTools mcp__weights        # only our server's tools are permitted
+  --permission-mode dontAsk          # anything not allowed is denied, never asked
+  --setting-sources ""               # no user/project/local settings, so no user plugins or hooks
+  --disable-slash-commands --no-session-persistence --include-hook-events
+```
+
+Run with cwd `cwd/` and `ENABLE_TOOL_SEARCH=false` (tool schemas inline).
+Never passed: `--fallback-model`, `--dangerously-skip-permissions`,
+`--add-dir`, `--resume`. `--bare` is not usable (it requires an API key).
+
+### 10.3 Guards (any failure = harness error, nothing recorded as a prediction)
+
+1. **Init guard.** Claude Code's first event (`system/init`) must show:
+   tools exactly `{mcp__weights__<name>}` for the condition's tool set;
+   MCP servers exactly `[weights: connected]`; model = configured model;
+   no skills, no slash commands; only built-in plugins; permission mode
+   `dontAsk`; cwd = the session's empty `cwd/`; Claude Code version = one for
+   which the live probe (§10.6) has passed (Claude Code auto-updates; a new
+   version stops the pass until the probe is re-run).
+2. **Model guard.** Every assistant message must come from the configured
+   model; a switch (e.g. a usage-limit fallback) aborts the session.
+3. **Error guard.** An error result (login, usage limit, overload, network)
+   aborts the session.
+4. **Leak guard.** Prompts are leak-scanned before launch (`check_prompt`, as
+   in the API backend); every tool output is leak-scanned in the MCP server;
+   a hit aborts the whole pass with `LeakError`.
+
+An aborted attempt is logged to
+`results/predictions/<stage>/_harness_aborts.jsonl` (reason, time, no model
+text) and the pass stops; re-running resumes. Abort decisions use only
+infrastructure signals, never the content of an answer. A session that aborts
+`max_attempts_per_session` times is recorded as invalid
+(`status: harness_failure`), matching METHODOLOGY §7.1's "API failure after
+retries".
+
+### 10.4 Session semantics (match the API backend)
+
+- Turn cap: distinct assistant messages counted from the stream; exceeding
+  `max_turns` without a submission kills the process, `status: turn_cap`.
+- Nudge: if Claude Code finishes a turn without a submission, the same
+  `NUDGE` text is sent once on stdin; a second finish without a submission
+  is `no_submission`.
+- Submission: authoritative copy is `mcp/submission.json`. The MCP server
+  rejects a schema-violating submission with a tool error (the API backend's
+  strict tools make such submissions impossible); rejections are counted.
+  Range checks remain post hoc (`validate_submission`).
+- Refusal: `stop_reason: refusal` on any assistant message, `status: refusal`.
+- Record: same schema as `run_session`, plus `backend`, `claude_code_version`,
+  `session_id`, `init_check`, `harness` (CLI args without prompt text),
+  `submit_rejections`, `thinking_blocks_seen`. `request_id` is unavailable and
+  stored as null. `cost_usd` is Claude Code's reported notional cost.
+
+### 10.5 What this backend cannot guarantee (recorded as limitations)
+
+- Exact request bytes: Claude Code may add its own harness context (e.g. date)
+  around our prompt. It cannot add task information: none exists in the
+  session's directories, settings sources, or memory.
+- Inference parameters beyond model and effort (thinking display, max_tokens)
+  are Claude Code's defaults and are recorded only as far as reported.
+- Reasoning summaries may be absent from the stream; the §7.4 scan then
+  covers final explanations only.
+
+### 10.6 Verification before any study session
+
+`scripts/probe_claude_code.py` runs one live session with the real harness on
+a throwaway random network that is not in any pool. Its working directory
+holds two canary files, a `CLAUDE.md` and a plain text file, each with a
+random token. The prompt asks the model to list its tools, to try to read
+files, run code, browse and recall earlier sessions, and to quote any
+context it received. Pass = init guard passes, only `mcp__weights__*` tools
+were called, `get_architecture` returned successfully, and neither canary
+token appears anywhere in the stream. The probe is never part of a stage; its
+result (checks, the model's report, the redacted event stream) is saved to
+`results/probes/`.
+
